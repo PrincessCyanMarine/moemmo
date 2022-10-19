@@ -1,4 +1,12 @@
-import { version, author, description, icons, name, zip } from "./config.json";
+import {
+  version,
+  author,
+  description,
+  icons,
+  name,
+  zip,
+  doLog,
+} from "./config.json";
 import { createCanvas, loadImage } from "canvas";
 import {
   copyFileSync,
@@ -20,6 +28,12 @@ const unowns = "bcdefghijklmnopq";
 type File = ParsedPath & { path: string };
 type Files = { [name: string]: File };
 
+function log(...a: any[]) {
+  if (doLog) {
+    console.log(...a);
+  }
+}
+
 const files: Files = {};
 readdirSync("./Sprites")
   .map((d) => parse(`./Sprites/${d}`))
@@ -36,20 +50,34 @@ readdirSync("./Sprites/UnownSets")
     unown[d.name.split("-")[1]] = { ...d, path: `${d.dir}/${d.base}` };
   });
 
-// console.log(unown);
-// console.log(files);
+// log(unown);
+// log(files);
 
-if (!existsSync("./output")) mkdirSync("./output");
-if (!existsSync("./output/sprites")) mkdirSync("./output/sprites");
-if (!existsSync("./output/sprites/battlesprites"))
-  mkdirSync("./output/sprites/battlesprites");
+rmSync("./output", { recursive: true, force: true });
+mkdirSync("./output");
+mkdirSync("./output/sprites");
+mkdirSync("./output/sprites/battlesprites");
 if (icons && !existsSync("./output/sprites/monstericons"))
   mkdirSync("./output/sprites/monstericons");
 
-for (let i = 1; i < 650; i++) cut(i);
-cut("Egg", 650);
-for (let i = 0; i < unowns.length; i++)
-  cut(652 + i, undefined, unown[unowns[i]]);
+function cutSprites1(i: number) {
+  log("Written sprite " + i);
+  cut(i).then(() => {
+    if (i < 649) cutSprites1(i + 1);
+    else {
+      cut("Egg", 650).then(() => {
+        cutUnowns(0);
+      });
+    }
+  });
+}
+cutSprites1(1);
+function cutUnowns(i: number) {
+  cut(652 + i, undefined, unown[unowns[i]]).then(() => {
+    if (i < unowns.length - 1) cutUnowns(i + 1);
+    else doIcons();
+  });
+}
 
 const names = ["front-n", "front-s", "back-n", "back-s"];
 
@@ -93,56 +121,84 @@ function removeBackground(imageData: ImageData) {
   return imageData;
 }
 
-if (icons) {
-  let cutIcon = async (id: number | string, out = id, file = files[id]) => {
-    let oCanvas = createCanvas(64, 64);
-    let canvas = createCanvas(36, 36);
-    let oCtx = oCanvas.getContext("2d");
-    let ctx = canvas.getContext("2d");
-    let image = await loadImage(file.path);
+function doIcons() {
+  if (icons) {
+    let cutIcon = async (id: number | string, out = id, file = files[id]) => {
+      let oCanvas = createCanvas(64, 64);
+      let canvas = createCanvas(36, 36);
+      let oCtx = oCanvas.getContext("2d");
+      let ctx = canvas.getContext("2d");
+      let image = await loadImage(file.path);
 
-    oCtx.drawImage(image, 0, 0, 64, 64, 0, 0, 64, 64);
-    let data = oCtx.getImageData(0, 0, 64, 64);
-    oCtx.putImageData(removeBackground(data), 0, 0);
+      oCtx.drawImage(image, 0, 0, 64, 64, 0, 0, 64, 64);
+      let data = oCtx.getImageData(0, 0, 64, 64);
+      oCtx.putImageData(removeBackground(data), 0, 0);
 
-    ctx.drawImage(oCanvas, 0, 0, 64, 64, 6, 10, 24, 24);
+      ctx.drawImage(oCanvas, 0, 0, 64, 64, 6, 10, 24, 24);
 
-    writeFileSync(
-      `./output/sprites/monstericons/${out}-0.png`,
-      canvas.toBuffer("image/png")
-    );
-  };
+      writeFileSync(
+        `./output/sprites/monstericons/${out}-0.png`,
+        canvas.toBuffer("image/png")
+      );
+      log("Written icon " + out);
+    };
 
-  for (let i = 1; i < 650; i++) cutIcon(i);
-  for (let i = 0; i < unowns.length; i++)
-    cutIcon(651 + i, undefined, unown[unowns[i]]);
+    function iconPart1(i: number) {
+      cutIcon(i).then(() => {
+        if (i < 649) iconPart1(i + 1);
+        else unownIcons(0);
+      });
+    }
+
+    function unownIcons(i: number) {
+      cutIcon(651 + i, undefined, unown[unowns[i]]).then(() => {
+        if (i < unowns.length) unownIcons(i + 1);
+        else doMeta();
+      });
+    }
+
+    iconPart1(1);
+  } else doMeta();
 }
 
-writeFileSync("./output/info.xml", info);
-if (existsSync("./icon.png")) copyFileSync("./icon.png", "./output/icon.png");
+function doMeta() {
+  writeFileSync("./output/info.xml", info);
+  if (existsSync("./icon.png")) copyFileSync("./icon.png", "./output/icon.png");
+  log("Written meta info");
+  doZip();
+}
+
 function readDir(path: string) {
   return readdirSync(path)
     .map((d) => parse(path + `/${d}`))
     .map((d) => ({ ...d, path: `${d.dir}/${d.base}` }));
 }
 
-if (zip) {
-  let zipFile = new JSZip();
-  let zipName = `${name.toLowerCase()}-${version}.mod`;
+function doZip() {
+  if (zip) {
+    log("Zipping");
+    let zipFile = new JSZip();
+    let zipName = `${name.toLowerCase().replace(/\s/g, "_")}-${version}.mod`;
 
-  if (existsSync(zipName)) rmSync(zipName);
+    if (existsSync(zipName)) rmSync(zipName);
 
-  let fun = (path: string, zip: JSZip) => {
-    readDir(path).forEach((d) => {
-      if (d.ext) zip.file(d.base, readFileSync(d.path));
-      else fun(d.path, zip.folder(d.base)!);
-    });
-  };
-  fun("./output", zipFile);
+    let fun = (path: string, zip: JSZip) => {
+      readDir(path).forEach((d) => {
+        if (d.ext) zip.file(d.base, readFileSync(d.path));
+        else fun(d.path, zip.folder(d.base)!);
+      });
+    };
+    fun("./output", zipFile);
 
-  zipFile.generateAsync({ type: "base64" }).then((content) => {
-    writeFileSync(zipName, content, {
-      encoding: "base64",
-    });
-  });
+    zipFile
+      .generateAsync({ type: "base64" })
+      .then((content) => {
+        writeFileSync(zipName, content, {
+          encoding: "base64",
+        });
+      })
+      .then(() => {
+        log("Finished");
+      });
+  }
 }
