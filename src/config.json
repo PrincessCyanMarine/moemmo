@@ -1,9 +1,9 @@
 {
-    "icons": false,
+    "icons": true,
     "zip": true,
     "version": "1.0.1",
     "author": "CyanMarine",
-    "name": "MoeMMO",
+    "name": "MoeMMO with icons",
     "description": "Sprites from the moemon project discord",
     "doLog": true
 }

@@ -20,7 +20,7 @@ import {
 import { parse, ParsedPath } from "path";
 import JSZip from "jszip";
 
-const info = `<?xml version="${version}" encoding="UTF-8" standalone="no"?>
+const info = `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <resource author="${author}" description="${description}. Created using CyanMarine's auto moemon modder" name="${name}" version="${version}" weblink=""/>`;
 
 const unowns = "bcdefghijklmnopq";
