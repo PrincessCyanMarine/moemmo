@@ -1,11 +1,9 @@
 {
-  "name": "modmaker",
+  "name": "moemmo",
   "version": "1.0.0",
   "description": "",
   "main": "dist/index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
+  "scripts": {},
   "author": "CyanMarine",
   "license": "GPL-3.0-or-later",
   "dependencies": {
