@@ -6,6 +6,8 @@ import {
   name,
   zip,
   doLog,
+  bgColorDifference,
+  weblink
 } from "./config.json";
 import { createCanvas, loadImage } from "canvas";
 import {
@@ -21,7 +23,7 @@ import { parse, ParsedPath } from "path";
 import JSZip from "jszip";
 
 const info = `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<resource author="${author}" description="${description}. Created using CyanMarine's auto moemon modder" name="${name}" version="${version}" weblink=""/>`;
+<resource author="${author}" description="${description}. Created using CyanMarine's auto moemon modder" name="${name}" version="${version}" weblink="${weblink}"/>`;
 
 const unowns = "bcdefghijklmnopq";
 
@@ -109,16 +111,35 @@ function removeBackground(imageData: ImageData) {
 
   for (let i = 0; i < data.length; i += 4) {
     if (
-      data[i] == r &&
-      data[i + 1] == g &&
-      data[i + 2] == b &&
-      data[i + 3] == a
+      bgColorDifference > 0
+        ? getColorDifference(
+            [r, g, b, a],
+            [data[i], data[i + 1], data[i + 2], data[i + 3]]
+          ) < bgColorDifference
+        : data[i] == r &&
+          data[i + 1] == g &&
+          data[i + 2] == b &&
+          data[i + 3] == a
     ) {
       data[i] = data[i + 1] = data[i + 2] = data[i + 3] = 0;
     }
   }
 
   return imageData;
+}
+
+type Color = [number, number, number, number?];
+
+function getColorDifference(a: Color, b: Color) {
+  let [ra, ga, ba, aa = 0] = a;
+  let [rb, gb, bb, ab = 0] = b;
+
+  let dr = rb - ra;
+  let dg = ga - gb;
+  let db = ba - bb;
+  let da = aa - ab;
+
+  return dr * dr + dg * dg + db * db + da * da;
 }
 
 function doIcons() {
